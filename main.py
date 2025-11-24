@@ -20,6 +20,30 @@ mydb = client.commerce
 def limpar():
     os.system("cls" if os.name == "nt" else "clear")
 
+def tempo_restante_sessao(user_id):
+    ttl = r.ttl(f"session:{user_id}")
+    if ttl >= 3600:
+        tempo = f"{ttl // 3600} hora(s)"
+        if ttl % 3600 >= 60:
+            tempo += f", { (ttl % 3600) // 60 } minuto(s)"
+        if ttl % 60 > 0:
+            tempo += f" e { ttl % 60 } segundo(s)"
+    elif ttl >= 60:
+        tempo = f"{ttl // 60} minuto(s)"
+        if ttl % 60 > 0:
+            tempo += f" e { ttl % 60 } segundo(s)"
+    else:
+        tempo = f"{ttl} segundo(s)"
+    if ttl == -2:
+        print("Sessão expirada ou não encontrada.")
+        return 0
+    elif ttl == -1:
+        print("Sessão ativa, sem tempo limite.")
+        return None
+    else:
+        print(f"Sua sessão expira em {tempo}. Salve seu progresso.")
+        return ttl
+
 def cliente_to_redis_dict(cliente):
     cliente['_id'] = str(cliente['_id'])
     if 'enderecos' in cliente and isinstance(cliente['enderecos'], list):
@@ -34,7 +58,7 @@ while True:
     senha = hashlib.sha256(input("Senha: ").encode()).hexdigest()
     cliente = mydb.cliente.find_one({'email': email, 'senha': senha})
     if cliente:
-        r.setex(f"session:{str(cliente['_id'])}", 3600, json.dumps(cliente_to_redis_dict(cliente), default=str))
+        r.setex(f"session:{str(cliente['_id'])}", 5, json.dumps(cliente_to_redis_dict(cliente), default=str))
         session = json.loads(r.get(f"session:{str(cliente['_id'])}"))
         print(f"\nBem-vindo, {cliente['nome']}!\n")
         break
@@ -47,6 +71,7 @@ while True:
 
 
 while True:
+    tempo_restante_sessao(session['_id'])
     print("""
 ============================================================
 ➕ CADASTRAR
